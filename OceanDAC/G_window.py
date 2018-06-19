@@ -45,8 +45,8 @@ class Ui_GWindow(object):
         #self.rate_mode.addItem("MAX")
         #self.rate_mode.addItem("LIN")
         #self.layout_1.addRow(QtGui.QLabel("Rate Mode :"), self.rate_mode)
-        #self.btn_apply = QtGui.QPushButton("Apply")
-        #self.layout_1.addRow(self.btn_apply)
+        self.btn_apply = QtGui.QPushButton("Apply")
+        self.layout_1.addRow(self.btn_apply)
 
         self.layout_2 = QtGui.QFormLayout()                               # Create the second layout ; this part allow us to read the current parameters
         self.line_setp2 = QtGui.QLineEdit()
@@ -83,10 +83,11 @@ class Ui_GWindow(object):
 
         self.layout_pr = QtGui.QGridLayout()
         self.plot_pr = pg.PlotWidget(title="Pressure Control", enableMenu=True)
-        self.plot_pr.setLabel('left', 'Pressure inside the Cell', units='Bar')
+        self.plot_pr.setLabel('left', 'Pressure inside the Cell', units='Pa')
         self.plot_pr.setLabel('bottom', 'Pace Pressure', units='Bar')
         self.layout_pr.addWidget(self.plot_pr)
         self.btn_Stc = QtGui.QPushButton("Start Pressure Control ")
+        self.btn_Stc.setCheckable(True)
         self.layout_pr.addWidget((self.btn_Stc), 1, 0)
 
 

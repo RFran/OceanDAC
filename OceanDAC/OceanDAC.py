@@ -86,8 +86,7 @@ except AttributeError:
                         out = str(ser.read(ser.inWaiting()))
                         print('Out = ', out)
                         liste.append(out)
-                    if (len(
-                            liste) > 0):  # If we get an answer, we take only the usefull information before retruning it
+                    if (len(liste) > 0):  # If we get an answer, we take only the usefull information before retruning it
                         rep = out.split(" ")[1]
                         rep = rep[0:-5]
                         print('reponse=', rep, "|")
@@ -459,12 +458,9 @@ class Main(QMainWindow, Ui_MainWindow):
         #print(self.pressure_list)
         #print("Pressure OCDAC: ", self.pressure)
         #self.Pace_window.plot_p.plot(y=self.pressure, pen=(19, 234, 201), symbolBrush=(19, 234, 201))
-        return self.pressure
+        return (self.pressure)
 
 
-
-    def PID_pressure(self):
-        return self.pressure
 
 
     def monitoring_pressure(self):
@@ -609,13 +605,14 @@ class PACE5000Window(QtGui.QMainWindow,  G_window.Ui_GWindow):
         self.btn_read.clicked.connect(self.readparam)  # We define the purpose of the buttons
         self.btn_stpm.clicked.connect(self.Stop_m)
         self.btn_strtm.clicked.connect(self.Start_m)
-        self.btn_Stc.clicked.connect(self.control_p)
+        self.btn_Stc.toggled.connect(self.monitoring_both)
+        self.btn_apply.clicked.connect(self.applyparam)
 
 
         # ------- INITIALISATION ---------
 
-        #self.line_setp1.setText(str(round(float(execution(ser, ":SOUR:PRES?")[0:4]), 3)))
-        #self.line_slewrate1.setText(str(round((float(execution(ser, ":SOUR:SLEW?")[0:-1]) * 60), 3)))
+        self.line_setp1.setText(str(round(float(execution(ser, ":SOUR:PRES?")[0:4]), 3)))
+        self.line_slewrate1.setText(str(round((float(execution(ser, ":SOUR:SLEW?")[0:-1]) * 60), 3)))
 
         # -------FUNCTIONS-------
 
@@ -624,6 +621,7 @@ class PACE5000Window(QtGui.QMainWindow,  G_window.Ui_GWindow):
         self.line_slewrate2.setText(str(round((float(execution(ser, ":SOUR:SLEW?")[0:-1]) * 60), 3)))
         self.line_slewrate_act.setText(str(round((float(execution(ser, ":SENS:SLEW?")[0:5]) * 60), 3)))
         self.line_pressure2.setText(str(round(float(execution(ser, ":SENS:PRES?")[0:4]), 3)))
+
 
 
     def applyparam(self):  # This function allow us to apply new parameters
@@ -661,52 +659,72 @@ class PACE5000Window(QtGui.QMainWindow,  G_window.Ui_GWindow):
     def Start_m(self):  # Turns controller on
         self.applyparam()
         self.readparam()
-        self.plot_p.clear()
-        execution(ser, ":OUTP:STAT ON")
-        while execution(ser, ":OUTP:STAT?")[0] == '1':
-            self.line_state.setText('Control Mode')
-            self.line_state.setStyleSheet("QLabel {color : blue}")
-            x = 1
-            pressure_data = []
-            time_p = []
-            start = time.time()
-            while x == 1:
 
-                self.line_slewrate_act.setText(str(round(float(execution(ser, ":SENS:SLEW?")[0:7]) * 60, 3)))
-                self.line_pressure2.setText(str(round(float(execution(ser, ":SENS:PRES?")[0:4]), 3)))
-                y_value = time.time()
-                time_p.append(y_value - start)
-                pressure_data.append(float(execution(ser, ":SENS:PRES?")[0:5]))
-                QtCore.QCoreApplication.processEvents()  # Dirty way, I should try with a thread
-                time.sleep(0.45)
-                QtCore.QCoreApplication.processEvents()  # Dirty way, I should try with a thread
-                self.plot_p.plot(y=pressure_data, x=time_p, pen=(19, 234, 201), symbolBrush=(19, 234, 201),
-                                 symbol='h')
-                if execution(ser, ":OUTP:STAT?")[0] == '0':
-                    break
+        execution(ser, ":OUTP:STAT ON")
+        self.line_state.setText('Control Mode')
+        self.line_state.setStyleSheet("QLabel {color : blue}")
+
+    def Graph_pace(self):
+
+        self.line_slewrate_act.setText(str(round(float(execution(ser, ":SENS:SLEW?")[0:7]) * 60, 3)))
+        self.line_pressure2.setText(str(round(float(execution(ser, ":SENS:PRES?")[0:4]), 3)))
+        y_value = time.time()
+        self.time_p.append(y_value - self.start)
+        self.pressure_data.append(float(execution(ser, ":SENS:PRES?")[0:5]))
+        self.plot_p.plot(y=self.pressure_data, x=self.time_p, pen=(19, 234, 201), symbolBrush=(19, 234, 201), symbol='h')
+
+
+    def timer_func(self):
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.control_p)
+        self.timer.timeout.connect(self.Graph_pace)
+        self.timer.start(450)
+
+
+
+    def monitoring_both(self):
+        self.enable_monitoring = self.btn_Stc.isChecked()
+
+        if self.enable_monitoring:
+            self.btn_Stc.setText("Stop pressure Control")
+            self.plot_p.clear()
+            self.plot_pr.clear()
+            self.x_value = []
+            self.y_value = []
+            self.pressure_data = []
+            self.time_p = []
+            self.start = time.time()
+            self.timer_func()
+
+        else:
+            self.btn_Stc.setText("Start Pressure Control")
+            self.timer.stop()
+
 
 
     def control_p(self):
-        start=time.time()
-        x_value =[]
-        x=1
-        self.enable_permanent_mode = True
-        #self.main_window.run_forever()
+        try:
+            start=time.time()
 
-        while self.enable_permanent_mode:
-
+            self.enable_permanent_mode = True
             time_m= time.time()
-            x_value.append(time_m-start)
-            QtCore.QCoreApplication.processEvents()
 
-            p = self.main_window.display_fit_results()
-            QtCore.QCoreApplication.processEvents()
-            print("Pressure =", p)
-            #self.plot_pr.plot(y=p, x=x_value, pen=(19, 234, 201), symbolBrush=(19, 234, 201), symbol='h')
-            #self.plot_pr.plot(y=p, x=x_value, pen=(19, 234, 201), symbolBrush=(19, 234, 201), symbol='h')
-            time.sleep(0.45)
+            self.x_value.append(float(execution(ser, ":SENS:PRES?")[0:5]))   #Pace pressure
+            p = self.main_window.display_fit_results().item()
+            self.y_value.append((p*10**9))
+            #print("type p :", type(p), p)
+            #print("X value :", self.x_value, 'y Value :', self.y_value)
+            #print("Pressure =", p)
+            self.plot_pr.plot(y=self.y_value, x=self.x_value, pen=(12, 24, 121), symbolBrush=(12, 24, 121), symbol='h')
+        except AttributeError:
+            print("")
+            pass
+            #info_p = QtGui.QMessageBox.question(None, 'Pressure measurement',"Make sure to start the pressure measurement in the Main window.")
+            #sys.exit()
 
-#QTimer
+
+
+
 
 
 
@@ -741,7 +759,7 @@ if __name__ == '__main__':
 
 
     app = QtGui.QApplication(sys.argv)
-    #ser = discover_connect()
+    ser = discover_connect()
     main = Main()
     main.show()
     import inspect
